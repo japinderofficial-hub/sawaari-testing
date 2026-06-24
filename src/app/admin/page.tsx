@@ -22,7 +22,7 @@ interface DriverProfile {
   };
   documents: {
     id: string;
-    type: 'license' | 'permit' | 'registration';
+    type: 'license' | 'permit' | 'registration' | 'aadhaar' | 'vehicle_photo';
     url: string;
     status: 'pending' | 'approved' | 'rejected';
     comments?: string;
@@ -267,7 +267,7 @@ export default function AdminDashboard() {
                       {selectedDriver.documents.map((doc) => (
                         <div key={doc.id} className="border border-border bg-[#050505] p-4 rounded-lg space-y-3">
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-white uppercase">{doc.type} Document</span>
+                            <span className="text-xs font-bold text-white uppercase">{doc.type.replace('_', ' ')} Document</span>
                             <span className={`px-2 py-0.5 rounded text-[8px] uppercase border ${getStatusColor(doc.status)}`}>
                               {doc.status}
                             </span>

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useSawaariStore, RideDetails } from '../../lib/store';
 import { api } from '../../lib/api';
 import { getSocket, initializeSocket } from '../../lib/socket';
-import GoogleMapComponent from '../../components/map/GoogleMapComponent';
+import dynamic from 'next/dynamic';
+const GoogleMapComponent = dynamic(() => import('../../components/map/GoogleMapComponent'), { ssr: false });
 import { 
   Power, Navigation, ShieldAlert, Award, Star, 
   MapPin, CheckCircle, IndianRupee, Compass, ChevronRight, Phone 
@@ -499,6 +500,9 @@ export default function DriverDashboard() {
           center={mapCenter}
           zoom={14}
           markers={mapMarkers}
+          pickupCoords={pickupCoords}
+          dropoffCoords={dropoffCoords}
+          hasActiveRide={!!activeRide}
         />
       </div>
 

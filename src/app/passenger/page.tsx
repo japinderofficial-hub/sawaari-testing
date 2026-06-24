@@ -6,7 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useSawaariStore, RideDetails } from '../../lib/store';
 import { api } from '../../lib/api';
 import { getSocket, initializeSocket } from '../../lib/socket';
-import GoogleMapComponent from '../../components/map/GoogleMapComponent';
+import dynamic from 'next/dynamic';
+const GoogleMapComponent = dynamic(() => import('../../components/map/GoogleMapComponent'), { ssr: false });
 import { 
   MapPin, Navigation, ShieldAlert, X, Star, CheckCircle, 
   MapPinIcon, IndianRupee, Compass, ChevronRight, Phone 
@@ -22,6 +23,16 @@ export default function PassengerDashboard() {
   const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [dropoffAddr, setDropoffAddr] = useState('');
   const [dropoffCoords, setDropoffCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Nominatim Autocomplete & Reverse Geocoding states
+  const [pickupSuggestions, setPickupSuggestions] = useState<any[]>([]);
+  const [dropoffSuggestions, setDropoffSuggestions] = useState<any[]>([]);
+  const [isLoadingPickupSuggestions, setIsLoadingPickupSuggestions] = useState(false);
+  const [isLoadingDropoffSuggestions, setIsLoadingDropoffSuggestions] = useState(false);
+  const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
+  const [showDropoffSuggestions, setShowDropoffSuggestions] = useState(false);
+  const [lastSelectedPickup, setLastSelectedPickup] = useState('');
+  const [lastSelectedDropoff, setLastSelectedDropoff] = useState('');
 
   const [estimate, setEstimate] = useState<{ fare: number; distanceMeters: number; durationSeconds: number } | null>(null);
   const [isLoadingEstimate, setIsLoadingEstimate] = useState(false);
@@ -97,58 +108,87 @@ export default function PassengerDashboard() {
     };
   }, [token, activeRide]);
 
-  // 4. Load Google Places Autocomplete dynamically
+  // Debounced search for Pickup
   useEffect(() => {
-    if (!pickupInputRef.current || !dropoffInputRef.current) return;
+    if (!pickupAddr || pickupAddr === lastSelectedPickup || pickupAddr === 'Current Live Location' || pickupAddr.startsWith('Selected Pickup')) {
+      setPickupSuggestions([]);
+      return;
+    }
 
-    const initAutocomplete = () => {
-      if (typeof window === 'undefined' || !window.google || !window.google.maps || !window.google.maps.places) return;
-
-      const pickupAutocomplete = new window.google.maps.places.Autocomplete(pickupInputRef.current!, {
-        componentRestrictions: { country: 'in' },
-        fields: ['formatted_address', 'geometry'],
-      });
-
-      pickupAutocomplete.addListener('place_changed', () => {
-        const place = pickupAutocomplete.getPlace();
-        if (place.geometry?.location) {
-          const coords = {
-            lat: place.geometry.location.lat(),
-            lng: place.geometry.location.lng(),
-          };
-          setPickupCoords(coords);
-          setPickupAddr(place.formatted_address || '');
+    const delayDebounce = setTimeout(async () => {
+      setIsLoadingPickupSuggestions(true);
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(pickupAddr)}&format=json&limit=5&addressdetails=1&countrycodes=in`;
+        const res = await fetch(url, {
+          headers: {
+            'User-Agent': 'Sawaari-App/1.0',
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setPickupSuggestions(data);
         }
-      });
-
-      const dropoffAutocomplete = new window.google.maps.places.Autocomplete(dropoffInputRef.current!, {
-        componentRestrictions: { country: 'in' },
-        fields: ['formatted_address', 'geometry'],
-      });
-
-      dropoffAutocomplete.addListener('place_changed', () => {
-        const place = dropoffAutocomplete.getPlace();
-        if (place.geometry?.location) {
-          const coords = {
-            lat: place.geometry.location.lat(),
-            lng: place.geometry.location.lng(),
-          };
-          setDropoffCoords(coords);
-          setDropoffAddr(place.formatted_address || '');
-        }
-      });
-    };
-
-    // Retry checking if script loaded every 1 sec
-    const timer = setInterval(() => {
-      if (window.google && window.google.maps && window.google.maps.places) {
-        initAutocomplete();
-        clearInterval(timer);
+      } catch (err) {
+        console.error('Pickup Nominatim lookup error:', err);
+      } finally {
+        setIsLoadingPickupSuggestions(false);
       }
-    }, 1000);
+    }, 450);
 
-    return () => clearInterval(timer);
-  }, []);
+    return () => clearTimeout(delayDebounce);
+  }, [pickupAddr, lastSelectedPickup]);
+
+  // Debounced search for Dropoff
+  useEffect(() => {
+    if (!dropoffAddr || dropoffAddr === lastSelectedDropoff || dropoffAddr.startsWith('Selected Destination')) {
+      setDropoffSuggestions([]);
+      return;
+    }
+
+    const delayDebounce = setTimeout(async () => {
+      setIsLoadingDropoffSuggestions(true);
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(dropoffAddr)}&format=json&limit=5&addressdetails=1&countrycodes=in`;
+        const res = await fetch(url, {
+          headers: {
+            'User-Agent': 'Sawaari-App/1.0',
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setDropoffSuggestions(data);
+        }
+      } catch (err) {
+        console.error('Dropoff Nominatim lookup error:', err);
+      } finally {
+        setIsLoadingDropoffSuggestions(false);
+      }
+    }, 450);
+
+    return () => clearTimeout(delayDebounce);
+  }, [dropoffAddr, lastSelectedDropoff]);
+
+  const handleSelectPickupSuggestion = (suggestion: any) => {
+    const coords = {
+      lat: parseFloat(suggestion.lat),
+      lng: parseFloat(suggestion.lon),
+    };
+    setPickupCoords(coords);
+    setPickupAddr(suggestion.display_name);
+    setLastSelectedPickup(suggestion.display_name);
+    setShowPickupSuggestions(false);
+  };
+
+  const handleSelectDropoffSuggestion = (suggestion: any) => {
+    const coords = {
+      lat: parseFloat(suggestion.lat),
+      lng: parseFloat(suggestion.lon),
+    };
+    setDropoffCoords(coords);
+    setDropoffAddr(suggestion.display_name);
+    setLastSelectedDropoff(suggestion.display_name);
+    setShowDropoffSuggestions(false);
+  };
 
   // 5. Detect current GPS location
   const handleDetectLocation = () => {
@@ -162,15 +202,27 @@ export default function PassengerDashboard() {
           setPickupCoords(coords);
           setPickupAddr('Current Live Location');
           
-          // Reverse geocoding lookup
-          if (window.google && window.google.maps) {
-            const geocoder = new window.google.maps.Geocoder();
-            geocoder.geocode({ location: coords }, (results, status) => {
-              if (status === 'OK' && results?.[0]) {
-                setPickupAddr(results[0].formatted_address);
+          // Reverse geocoding lookup using Nominatim
+          const reverseGeocode = async () => {
+            try {
+              const url = `https://nominatim.openstreetmap.org/reverse?lat=${coords.lat}&lon=${coords.lng}&format=json`;
+              const res = await fetch(url, {
+                headers: {
+                  'User-Agent': 'Sawaari-App/1.0',
+                }
+              });
+              if (res.ok) {
+                const data = await res.json();
+                if (data.display_name) {
+                  setPickupAddr(data.display_name);
+                  setLastSelectedPickup(data.display_name);
+                }
               }
-            });
-          }
+            } catch (err) {
+              console.error('Failed reverse geocoding:', err);
+            }
+          };
+          reverseGeocode();
         },
         (error) => {
           alert('Failed to detect location. Please search manually.');
@@ -547,7 +599,31 @@ export default function PassengerDashboard() {
                       className="w-full bg-[#0A0A0A] border border-border rounded-lg py-3.5 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-primary transition-colors"
                       value={pickupAddr}
                       onChange={(e) => setPickupAddr(e.target.value)}
+                      onFocus={() => setShowPickupSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowPickupSuggestions(false), 200)}
                     />
+                    {showPickupSuggestions && (pickupSuggestions.length > 0 || isLoadingPickupSuggestions) && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-[#0A0A0A] border border-border rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto divide-y divide-border/50">
+                        {isLoadingPickupSuggestions ? (
+                          <div className="p-3 text-xs text-muted flex items-center space-x-2">
+                            <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <span>Searching locations...</span>
+                          </div>
+                        ) : (
+                          pickupSuggestions.map((suggestion) => (
+                            <button
+                              key={suggestion.place_id}
+                              type="button"
+                              onClick={() => handleSelectPickupSuggestion(suggestion)}
+                              className="w-full text-left p-3 hover:bg-neutral-900 transition-colors text-xs text-white flex flex-col space-y-0.5"
+                            >
+                              <span className="font-medium text-white">{suggestion.display_name.split(',')[0]}</span>
+                              <span className="text-[10px] text-muted truncate">{suggestion.display_name}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -565,7 +641,31 @@ export default function PassengerDashboard() {
                       className="w-full bg-[#0A0A0A] border border-border rounded-lg py-3.5 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-primary transition-colors"
                       value={dropoffAddr}
                       onChange={(e) => setDropoffAddr(e.target.value)}
+                      onFocus={() => setShowDropoffSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowDropoffSuggestions(false), 200)}
                     />
+                    {showDropoffSuggestions && (dropoffSuggestions.length > 0 || isLoadingDropoffSuggestions) && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-[#0A0A0A] border border-border rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto divide-y divide-border/50">
+                        {isLoadingDropoffSuggestions ? (
+                          <div className="p-3 text-xs text-muted flex items-center space-x-2">
+                            <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <span>Searching locations...</span>
+                          </div>
+                        ) : (
+                          dropoffSuggestions.map((suggestion) => (
+                            <button
+                              key={suggestion.place_id}
+                              type="button"
+                              onClick={() => handleSelectDropoffSuggestion(suggestion)}
+                              className="w-full text-left p-3 hover:bg-neutral-900 transition-colors text-xs text-white flex flex-col space-y-0.5"
+                            >
+                              <span className="font-medium text-white">{suggestion.display_name.split(',')[0]}</span>
+                              <span className="text-[10px] text-muted truncate">{suggestion.display_name}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -609,7 +709,7 @@ export default function PassengerDashboard() {
             
             {/* Quick Helper */}
             <div className="border-t border-border/50 pt-4 mt-auto">
-              <span className="text-[10px] text-muted italic">Google Places Autocomplete suggestions will appear as you type. Real maps require a valid Google Maps API Key in `.env.local`.</span>
+              <span className="text-[10px] text-muted italic">OpenStreetMap Nominatim suggestions will appear as you type. Routing is powered by OSRM.</span>
             </div>
           </div>
         )}
@@ -625,6 +725,7 @@ export default function PassengerDashboard() {
           pickupCoords={pickupCoords}
           dropoffCoords={dropoffCoords}
           onMapClick={handleMapClick}
+          hasActiveRide={!!activeRide || !!estimate}
         />
       </div>
 
