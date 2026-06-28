@@ -14,54 +14,32 @@ This is an `npm workspaces` monorepo containing:
 
 ## Quick Start Setup (VS Code)
 
-Follow these steps to run the application locally on your machine:
+Follow these simple steps to run the application locally:
 
-### 1. Prerequisite Containers (Database & Redis)
-Ensure Docker is installed and running, then start the database and cache services using:
+### 1. Run the Setup Script
+Ensure **Docker Desktop** is running on your machine. Then, clone the repository, open the folder in your terminal, and run:
 ```bash
-docker compose up -d
+# Make the setup script executable and run it
+chmod +x setup.sh && ./setup.sh
 ```
-* **PostgreSQL (PostGIS)** runs on port `5435`.
-* **Redis** runs on port `6380`.
+This script will automatically:
+1. Copy the `.env.example` templates to `.env` (backend) and `.env.local` (frontend).
+2. Start PostgreSQL (PostGIS) and Redis Docker containers.
+3. Clean and install all npm dependencies.
 
 ---
 
-### 2. Environment Configuration
-Create the environment files from the provided templates.
+### 2. Start the Development Servers
 
-#### Backend
-Navigate to `sawaari-backend/` and copy `.env.example` to `.env`:
-```bash
-cp sawaari-backend/.env.example sawaari-backend/.env
-```
+Run the following commands in separate terminal windows:
 
-#### Frontend
-Navigate to `sawaari-frontend/` and copy `.env.example` to `.env.local`:
-```bash
-cp sawaari-frontend/.env.example sawaari-frontend/.env.local
-```
-
----
-
-### 3. Install Dependencies
-Run npm install from the root directory to install all packages for both the backend and frontend:
-```bash
-npm install
-```
-
----
-
-### 4. Running the Development Servers
-
-You can run both servers directly from the root using monorepo workspace scripts:
-
-#### Start Backend
+#### Start Backend Server
 ```bash
 npm run dev:backend
 ```
 The NestJS server will start on [http://localhost:3001/api](http://localhost:3001/api).
 
-#### Start Frontend
+#### Start Frontend Web App
 ```bash
 npm run dev:frontend
 ```
