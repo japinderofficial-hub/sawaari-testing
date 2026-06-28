@@ -93,11 +93,20 @@ export class AuthService {
       throw new UnauthorizedException('Firebase Admin is not initialized and mock bypass is disabled');
     }
 
-    // Check if user exists
+    // Check if user exists (or by phone in mock bypass mode to allow switching roles)
     let user = await this.userRepository.findOne({ 
-      where: { firebaseUid },
+      where: [
+        { firebaseUid },
+        ...(allowMock && phone ? [{ phone }] : [])
+      ],
       relations: { driverProfile: true },
     });
+
+    if (allowMock && user && user.firebaseUid !== firebaseUid) {
+      user.firebaseUid = firebaseUid;
+      await this.userRepository.save(user);
+    }
+
     if (!user) {
       user = this.userRepository.create({
         firebaseUid,
