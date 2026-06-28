@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  sawaari-db:
+    image: postgis/postgis:16-3.4
+    container_name: sawaari-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: sawaari
+    ports:
+      - "5435:5432"
+    volumes:
+      - sawaari-db-data:/var/lib/postgresql/data
+
+  sawaari-redis:
+    image: redis:7-alpine
+    container_name: sawaari-redis
+    restart: always
+    ports:
+      - "6380:6379"
+
+volumes:
+  sawaari-db-data:
