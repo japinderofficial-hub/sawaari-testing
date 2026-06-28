@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SAWAARI - Auto Rickshaw Booking Platform (Monorepo)
 
-## Getting Started
+Welcome to **SAWAARI**, a premium mobility platform designed exclusively for Auto Rickshaws.
 
-First, run the development server:
+---
 
+## Repository Structure
+
+This is an `npm workspaces` monorepo containing:
+* `sawaari-frontend/`: Next.js Web App (Tailwind CSS, Leaflet Maps, Socket.IO Client).
+* `sawaari-backend/`: NestJS Backend API (PostgreSQL + PostGIS, Redis Cache, Sockets.IO Server).
+
+---
+
+## Quick Start Setup (VS Code)
+
+Follow these steps to run the application locally on your machine:
+
+### 1. Prerequisite Containers (Database & Redis)
+Ensure Docker is installed and running, then start the database and cache services using:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up -d
+```
+* **PostgreSQL (PostGIS)** runs on port `5435`.
+* **Redis** runs on port `6380`.
+
+---
+
+### 2. Environment Configuration
+Create the environment files from the provided templates.
+
+#### Backend
+Navigate to `sawaari-backend/` and copy `.env.example` to `.env`:
+```bash
+cp sawaari-backend/.env.example sawaari-backend/.env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+#### Frontend
+Navigate to `sawaari-frontend/` and copy `.env.example` to `.env.local`:
+```bash
+cp sawaari-frontend/.env.example sawaari-frontend/.env.local
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Install Dependencies
+Run npm install from the root directory to install all packages for both the backend and frontend:
+```bash
+npm install
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+### 4. Running the Development Servers
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+You can run both servers directly from the root using monorepo workspace scripts:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+#### Start Backend
+```bash
+npm run dev:backend
+```
+The NestJS server will start on [http://localhost:3001/api](http://localhost:3001/api).
 
-## Deploy on Vercel
+#### Start Frontend
+```bash
+npm run dev:frontend
+```
+The Next.js application will start on [http://localhost:3000](http://localhost:3000).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Features Implemented
+* **Real-time Ride Offer Overlay**: Centered, dimmed overlay backdrop (`z-[9998]`/`z-[9999]`) resolving Leaflet map layering issues. Displays Pickup/Destination address, Estimated Earning, Distance, Travel Time (ETA), and Countdown timer.
+* **Auto Driver Activation Bypass**: In dev/bypass mode, mock drivers (UID starting with `uid-`) automatically activate to `active` and have all 5 documents approved upon profile load, avoiding approval blocks.
+* **Socket and GPS sync**: Geolocation watch positioning and immediate broadcasting synchronized with socket status. Allows manual map click simulation.
+* **End-to-End Simulation**: Built-in verification testing in `/testing` page.
