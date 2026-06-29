@@ -40,6 +40,11 @@ export default function LandingPage() {
   
   const [selectedRole, setSelectedRole] = useState<OnboardingRole | null>(null);
   const [step, setStep] = useState<'landing' | 'phone' | 'otp' | 'details'>('landing');
+
+  // Automatic fail-safe mock bypass when running on localhost
+  const isLocalhost = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const isBypass = process.env.NEXT_PUBLIC_DEV_BYPASS === 'true' || isLocalhost;
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [tempPhone, setTempPhone] = useState('');
@@ -48,7 +53,7 @@ export default function LandingPage() {
   const [documentUrls, setDocumentUrls] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_DEV_BYPASS === 'true') return;
+    if (isBypass) return;
 
     const initRecaptcha = async () => {
       try {
@@ -169,7 +174,7 @@ export default function LandingPage() {
     try {
       setTempPhone(data.phone);
 
-      if (process.env.NEXT_PUBLIC_DEV_BYPASS === 'true') {
+      if (isBypass) {
         await new Promise((resolve) => setTimeout(resolve, 800)); // short delay for luxury flow feel
         setStep('otp');
         return;
@@ -205,8 +210,14 @@ export default function LandingPage() {
     setErrorMessage('');
     try {
       let idToken: string;
+      
+      console.log('DEBUG OTP SUBMIT:', {
+        NEXT_PUBLIC_DEV_BYPASS: process.env.NEXT_PUBLIC_DEV_BYPASS,
+        tempPhone,
+        selectedRole
+      });
 
-      if (process.env.NEXT_PUBLIC_DEV_BYPASS === 'true') {
+      if (isBypass) {
         idToken = `mock-token-${selectedRole}-${tempPhone}`;
       } else {
         if (!confirmationResult) {
@@ -285,7 +296,6 @@ export default function LandingPage() {
     setIsLoading(true);
     setErrorMessage('');
     try {
-      const isBypass = process.env.NEXT_PUBLIC_DEV_BYPASS === 'true';
       if (!isBypass && (!documentUrls.license || !documentUrls.permit || !documentUrls.registration || !documentUrls.aadhaar || !documentUrls.vehicle_photo)) {
         setErrorMessage('Please upload all required documents (License, Permit, RC, Aadhaar, and Vehicle Photo).');
         setIsLoading(false);
