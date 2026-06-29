@@ -145,6 +145,25 @@ export default function TestingDashboard() {
       setPassengerUser(passRes.user);
       addLog('Passenger token retrieved.');
 
+      // Clean up any stuck active ride from previous test sessions to ensure a clean slate
+      try {
+        const activeRes = await fetch('http://localhost:3001/api/rides/active', {
+          headers: {
+            'Authorization': `Bearer ${passRes.token}`
+          }
+        });
+        if (activeRes.ok) {
+          const activeRideData = await activeRes.json().catch(() => null);
+          if (activeRideData && activeRideData.id) {
+            addLog(`Found stuck active ride ${activeRideData.id} from a previous session. Cancelling...`);
+            await postApi(`/rides/${activeRideData.id}/cancel`, { reason: 'Clean E2E session start' }, passRes.token);
+            addLog('Previous stuck ride cancelled successfully.');
+          }
+        }
+      } catch (e) {
+        addLog('Active ride check skipped or failed.');
+      }
+
       // 2. Authenticate Driver (phone contains 99999999 for auto-approval bypass)
       const driverPassToken = 'mock-token-driver-9999922222';
       const drivRes = await postApi('/auth/register-or-login', {
