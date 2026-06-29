@@ -41,10 +41,8 @@ export default function LandingPage() {
   const [selectedRole, setSelectedRole] = useState<OnboardingRole | null>(null);
   const [step, setStep] = useState<'landing' | 'phone' | 'otp' | 'details'>('landing');
 
-  // Automatic fail-safe mock bypass when running on localhost
-  const isLocalhost = typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  const isBypass = process.env.NEXT_PUBLIC_DEV_BYPASS === 'true' || isLocalhost;
+  // Automatic fail-safe mock bypass when running in development mode
+  const isBypass = process.env.NEXT_PUBLIC_DEV_BYPASS === 'true' || process.env.NODE_ENV === 'development';
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [tempPhone, setTempPhone] = useState('');
